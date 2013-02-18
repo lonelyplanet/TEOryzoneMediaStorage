@@ -123,7 +123,7 @@ class VariantTree implements \IteratorAggregate
      * @param  int         $level
      * @return void
      */
-    protected function visit_recursive(VariantNode $node, \Closure $function = NULL, $level = 0)
+    protected function visit_recursive(VariantNode $node=NULL, \Closure $function = NULL, $level = 0)
     {
         if ($node !== NULL) {
             if($function)
