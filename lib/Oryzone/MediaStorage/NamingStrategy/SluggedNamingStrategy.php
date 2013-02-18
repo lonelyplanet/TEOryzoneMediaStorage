@@ -19,18 +19,40 @@ use Oryzone\MediaStorage\Model\MediaInterface,
 
 class SluggedNamingStrategy extends NamingStrategy
 {
+    protected $maxLength;
+
+    /**
+     * Constructor
+     *
+     * @param int $maxLength truncates the generated name to this length. Using <code>null</code> values will
+     * disable this feature. Default: 128
+     */
+    public function __construct($maxLength = 128)
+    {
+        $this->maxLength = $maxLength;
+    }
 
     /**
      * {@inheritDoc}
      */
     public function generateName(MediaInterface $media, VariantInterface $variant, Filesystem $filesystem)
     {
-        if( trim($media->getName()) == '' )
+        $name = trim($media->getName());
+        if( $name == '' )
             throw new InvalidArgumentException('The given media has no name');
 
-        $name = self::urlize($media->getName());
-        $uid = uniqid('-');
+        $suffix = uniqid('-').'_'.$variant->getName();
 
-        return $name.$uid.'_'.$variant->getName();
+        if( $this->maxLength && function_exists('mb_strlen') )
+        {
+            $nameMaxLength = $this->maxLength - mb_strlen($suffix);
+
+            if(mb_strlen($name.$suffix) > $this->maxLength)
+                $name = mb_substr($name, 0, $nameMaxLength);
+        }
+
+        $name = self::urlize($name);
+
+        return $name.$suffix;
     }
 }

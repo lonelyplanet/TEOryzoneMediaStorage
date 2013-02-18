@@ -138,64 +138,6 @@ class MediaStorage implements MediaStorageInterface
     }
 
     /**
-     * Creates an instance of \SplFileInfo instance from a source.
-     * Source may be a string (of a path) an instance of SPL <code>File</code>
-     *
-     * @param  \Oryzone\MediaStorage\Model\MediaInterface     $media
-     * @param  \Oryzone\MediaStorage\Variant\VariantInterface $variant
-     * @throws Exception\IOException
-     * @return \SplFileInfo
-     */
-    protected function createFileInstance(MediaInterface $media, VariantInterface $variant)
-    {
-        $source = $media->getContent();
-
-        if (is_string($source)) {
-            if(!is_file($source))
-                throw new IOException(
-                    sprintf('Cannot load file "%s" for media "%s", variant "%s". File not found.', $source, $media, $variant->getName()), $source);
-
-            return new \SplFileInfo($source);
-        } elseif(is_object($source) && $source instanceof \SplFileInfo)
-
-            return $source;
-
-        throw new IOException(
-            sprintf('Object of class "%s" is not an instance of \SplFileInfo so it cannot be loaded as a file while processing media "%s", variant "%s"', get_class($source), $media, $variant->getName()), $source);
-    }
-
-    /**
-     * @param \SplFileInfo             $file
-     * @param string                   $filename
-     * @param \Gaufrette\Filesystem    $filesystem
-     * @param Variant\VariantInterface $variant
-     *
-     * @return string
-     */
-    protected function saveFileToFilesystem(\SplFileInfo $file, $filename, \Gaufrette\Filesystem $filesystem, VariantInterface $variant)
-    {
-        $extension = $file->getExtension();
-        $filename .= '.'.$extension;
-
-        // read file data as stream and writes it in a single block
-        $src = new Local($file->getPathname());
-        $src->open(new StreamMode('rb+'));
-        $content = '';
-        while (!$src->eof()) {
-            $data     = $src->read(100000);
-            $content .= $data;
-        }
-        $dst = $filesystem->createFile($filename);
-        $dst->setContent($content);
-        $src->close();
-
-        $variant->setFilename($filename);
-        $variant->setStatus(VariantInterface::STATUS_READY);
-
-        return $filename;
-    }
-
-    /**
      * {@inheritDoc}
      */
     public function getCdn($name = NULL)
@@ -321,8 +263,24 @@ class MediaStorage implements MediaStorageInterface
                                 $media, $variant);
                         }
 
-                    } else
-                        $file = $this->createFileInstance($media, $variant);
+                    } else {
+                        $source = $media->getContent();
+
+                        if (is_string($source)) {
+                            if(!is_file($source))
+                                throw new IOException(
+                                    sprintf('Cannot load file "%s" for media "%s", variant "%s". File not found.', $source, $media, $variant->getName()), $source);
+
+                            $file = new \SplFileInfo($source);
+
+                        } elseif(is_object($source) && $source instanceof \SplFileInfo) {
+                            $file = $source;
+
+                        } else {
+                            throw new IOException(
+                                sprintf('Object of class "%s" is not an instance of \SplFileInfo so it cannot be loaded as a file while processing media "%s", variant "%s"', get_class($source), $media, $variant->getName()), $source);
+                        }
+                    }
                 }
 
                 switch ($variant->getMode()) {
@@ -331,7 +289,24 @@ class MediaStorage implements MediaStorageInterface
                         if ($result) {
                             $generatedFiles[$variant->getName()] = $result;
                             $name = $namingStrategy->generateName($media, $variant, $filesystem);
-                            $this->saveFileToFilesystem($result, $name, $filesystem, $variant);
+
+                            $extension = $result->getExtension();
+                            $name .= '.'.$extension;
+
+                            // read file data as stream and writes it in a single block
+                            $src = new Local($result->getPathname());
+                            $src->open(new StreamMode('rb+'));
+                            $content = '';
+                            while (!$src->eof()) {
+                                $data     = $src->read(100000);
+                                $content .= $data;
+                            }
+                            $dst = $filesystem->createFile($name);
+                            $dst->setContent($content);
+                            $src->close();
+
+                            $variant->setFilename($name);
+                            $variant->setStatus(VariantInterface::STATUS_READY);
                         }
                         break;
 
