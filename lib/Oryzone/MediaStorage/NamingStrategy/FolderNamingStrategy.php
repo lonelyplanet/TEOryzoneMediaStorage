@@ -25,8 +25,10 @@ class FolderNamingStrategy extends NamingStrategy
      */
     public function generateName(MediaInterface $media, VariantInterface $variant, Filesystem $filesystem)
     {
-        if ( !$media->getFilename() ) $media->setFilename(uniqid());
+        if ( !$media->getFilename() ) {
+            $media->setFilename(uniqid().'.jpg');
+        }
 
-        return $media->getContext().'/'.$variant->getName().'/' . $media->getFilename();
+        return $media->getContext().'/'.$variant->getName().'/' . substr($media->getFilename(), 0, -4);
     }
 }
